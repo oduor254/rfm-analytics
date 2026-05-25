@@ -1,6 +1,8 @@
 import certifi
 import ssl
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Set environment variables for SSL certificates
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()

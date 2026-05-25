@@ -11,10 +11,5 @@
       "src": "/(.*)",
       "dest": "rfm.py"
     }
-  ],
-  "functions": {
-    "rfm.py": {
-      "maxDuration": 300
-    }
-  }
+  ]
 }
