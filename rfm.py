@@ -827,7 +827,7 @@ def calculate_customer_of_month(df, month_str):
         Phone=('Phone', 'first'),
         Gender=('Gender', 'first'),
         Monthly_Spend=('Price', 'sum'),
-        Visits=('Date', 'count')
+        Visits=('Date', lambda x: x.dt.date.nunique())
     ).reset_index()
 
     results = []
