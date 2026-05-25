@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFM Analysis Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .filter-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            color: #2c3e50;
+            font-weight: 600;
+            min-width: 200px;
+            cursor: pointer;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: white;
+            font-size: 36px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 18px;
+            color: white;
+        }
+
+        /* Overview Cards */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .overview-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border-left: 5px solid #667eea;
+            transition: transform 0.3s;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .overview-card.champions {
+            border-left-color: #f39c12;
+        }
+
+        .overview-card.loyal {
+            border-left-color: #2ecc71;
+        }
+
+        .overview-card.atrisk {
+            border-left-color: #e74c3c;
+        }
+
+        .metric-label {
+            color: #7f8c8d;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            line-height: 1.2;
+        }
+
+        .metric-subtext {
+            font-size: 14px;
+            color: #95a5a6;
+            margin-top: 8px;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .chart-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+
+        /* Tables Section */
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ecf0f1;
+            color: #555;
+        }
+
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .segment-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-champions {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .badge-loyal {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .badge-big-spenders {
+            background-color: #9b59b6;
+            color: white;
+        }
+
+        .badge-new {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .badge-atrisk {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .badge-lost {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .badge-verylow {
+            background-color: #7f8c8d;
+            color: white;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        #content {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .shop-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .shop-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .progress-bar {
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            height: 25px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            transition: width 0.5s ease;
+        }
+
+        .gender-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+
+        .gender-male {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .gender-female {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .cotm-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .cotm-qualified   { background: #2ecc71; color: white; }
+        .cotm-not-qual    { background: #e74c3c; color: white; }
+        .cotm-verify      { background: #f39c12; color: white; }
+        .cotm-monitoring  { background: #3498db; color: white; }
+        .cotm-no-criteria { background: #95a5a6; color: white; }
+
+        .cotm-shop-header {
+            cursor: pointer;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .cotm-shop-header:hover { opacity: 0.85; }
+
+        .cotm-criteria-bar {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #555;
+            line-height: 1.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 RFM Analysis Dashboard</h1>
+        <div class="subtitle">
+            Recency, Frequency, Monetary Analysis
+            <div style="margin-top: 10px;">
+                <button onclick="refreshData()" id="refreshBtn" style="padding: 8px 20px; background: white; border: 2px solid rgba(255,255,255,0.5); border-radius: 20px; cursor: pointer; font-weight: bold; color: #667eea;">
+                    🔄 Refresh Data
+                </button>
+                <span id="cacheStatus" style="margin-left: 10px; font-size: 13px;"></span>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Time Period</label>
+                <select id="periodFilter" onchange="loadData()">
+                    <option value="Overall">Overall Analysis</option>
+                    <optgroup label="Monthly" id="monthOptions"></optgroup>
+                    <optgroup label="Quarterly" id="quarterOptions"></optgroup>
+                    <optgroup label="Semi-Annually" id="halfOptions"></optgroup>
+                    <optgroup label="Yearly" id="yearOptions"></optgroup>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Shop Location</label>
+                <select id="shopFilter" onchange="loadData()">
+                    <option value="All Shops">All Shops</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">⏳ Loading RFM data...</div>
+        <div id="error"></div>
+        <div id="content" style="display: none;">
+
+            <!-- Date Range Info -->
+            <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; color: white; text-align: center; backdrop-filter: blur(10px);">
+                <div style="font-size: 14px; margin-bottom: 5px;">
+                    📅 <span id="dateRangeText">Loading date range...</span>
+                </div>
+                <div style="font-size: 12px; opacity: 0.9;">
+                    📊 <span id="daysAndTransactionsText">-</span>
+                </div>
+            </div>
+
+            <!-- Overview Metrics -->
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="metric-label">Total Customers</div>
+                    <div class="metric-value" id="totalCustomers">-</div>
+                    <div class="metric-subtext">In analysis period</div>
+                </div>
+                <div class="overview-card champions">
+                    <div class="metric-label">Champions</div>
+                    <div class="metric-value" id="championsCount">-</div>
+                    <div class="metric-subtext" id="championsPct">-</div>
+                </div>
+                <div class="overview-card loyal">
+                    <div class="metric-label">Loyal Customers</div>
+                    <div class="metric-value" id="loyalCount">-</div>
+                    <div class="metric-subtext" id="loyalPct">-</div>
+                </div>
+                <div class="overview-card" style="border-left-color: #9b59b6;">
+                    <div class="metric-label">Big Spenders</div>
+                    <div class="metric-value" id="bigSpendersCount">-</div>
+                    <div class="metric-subtext" id="bigSpendersPct">-</div>
+                </div>
+                <div class="overview-card">
+                    <div class="metric-label">Lifetime Value</div>
+                    <div class="metric-value" id="avgSpend">-</div>
+                    <div class="metric-subtext">Average customer lifetime</div>
+                </div>
+                <div class="overview-card">
+                    <div class="metric-label">Avg Spend Per Visit</div>
+                    <div class="metric-value" id="avgSpendPerVisit">-</div>
+                    <div class="metric-subtext">Average transaction value</div>
+                </div>
+                <div class="overview-card">
+                    <div class="metric-label">Median Customer Spend</div>
+                    <div class="metric-value" id="medianSpend">-</div>
+                    <div class="metric-subtext">Middle value</div>
+                </div>
+                <div class="overview-card">
+                    <div class="metric-label">Below Average</div>
+                    <div class="metric-value" id="belowAvgCount">-</div>
+                    <div class="metric-subtext" id="belowAvgPct">-</div>
+                </div>
+                <div class="overview-card">
+                    <div class="metric-label">Above Average</div>
+                    <div class="metric-value" id="aboveAvgCount">-</div>
+                    <div class="metric-subtext" id="aboveAvgPct">-</div>
+                </div>
+            </div>
+
+            <!-- Best Customer Per Shop Table -->
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 0;">⭐ Best Customer Per Shop</h2>
+                    <div>
+                        <button onclick="exportBestCustomersToCSV()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-right: 10px;">
+                            📥 Export CSV
+                        </button>
+                        <button onclick="exportBestCustomersToExcel()" style="padding: 10px 20px; background: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                            📊 Export Excel
+                        </button>
+                    </div>
+                </div>
+                <table id="bestCustomerTable">
+                    <thead>
+                        <tr>
+                            <th>Shop</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Gender</th>
+                            <th>Segment</th>
+                            <th>Products</th>
+                            <th>Recency (Days)</th>
+                            <th>Revenue</th>
+                            <th>RFM Score</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Customer of the Month -->
+            <div class="section">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+                    <h2 style="margin-bottom:0;">🏅 Customer of the Month</h2>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <label style="color:#2c3e50;font-size:12px;font-weight:bold;text-transform:uppercase;white-space:nowrap;">Month</label>
+                            <select id="cotmMonthFilter" onchange="loadCustomerOfMonth()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;background:white;color:#2c3e50;font-weight:600;min-width:160px;cursor:pointer;">
+                                <option value="">Select month...</option>
+                            </select>
+                        </div>
+                        <button onclick="exportCOTMToCSV()" style="padding:10px 20px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
+                            📥 Export CSV
+                        </button>
+                        <button onclick="exportCOTMToExcel()" style="padding:10px 20px;background:#2ecc71;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
+                            📊 Export Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Criteria reference -->
+                <div class="cotm-criteria-bar">
+                    <strong style="color:#2c3e50;">Awarding Criteria (Monthly Spend → Bag Prize):</strong><br>
+                    Hilton: Ksh 50,000 → 4,000 &nbsp;|&nbsp; Starmall: 30,000 → 3,000 &nbsp;|&nbsp;
+                    KTDA / Hazina / Kakamega / Kisii: 20,000 → 2,000 &nbsp;|&nbsp;
+                    Mombasa / Nakuru / Eldoret / Thika / Kisumu / Meru / Kitengela: 15,000 → 2,000 &nbsp;|&nbsp;
+                    Nanyuki / Busia: 10,000 → 1,200<br>
+                    <span style="color:#f39c12;">⚠️ Corporate &amp; Website: check and verify the amount manually</span>
+                    &nbsp;&nbsp;
+                    <span style="color:#3498db;">👁 Rongai / Sinza / Uganda: monitoring only</span>
+                </div>
+
+                <div id="cotmLoading" style="text-align:center;padding:20px;color:#667eea;display:none;">⏳ Loading...</div>
+
+                <!-- Summary stat cards -->
+                <div id="cotmStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px;"></div>
+
+                <!-- Per-shop sections (populated by JS) -->
+                <div id="cotmContainer"></div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-card">
+                    <h3>RFM Segment Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="segmentChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Purchase Frequency Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="frequencyChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Customer Spending Analysis</h3>
+                    <div class="chart-container">
+                        <canvas id="spendingChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Monthly Segment Trends</h3>
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Best Customer Per Shop - Revenue</h3>
+                    <div class="chart-container">
+                        <canvas id="bestCustomerChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segment Details Table -->
+            <div class="section">
+                <h2>📋 RFM Segment Details</h2>
+                <table id="segmentTable">
+                    <thead>
+                        <tr>
+                            <th>Segment</th>
+                            <th>Customer Count</th>
+                            <th>Percentage</th>
+                            <th>Avg Revenue</th>
+                            <th>Avg Frequency</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Shop Gender Distribution -->
+            <div class="section">
+                <h2>🏪 Customer Distribution by Shop & Gender</h2>
+                <div id="shopGenderContainer"></div>
+            </div>
+
+
+
+            <!-- Best Customers by Shop -->
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 0;">🏆 Top 10 Best Customers by Shop</h2>
+                    <div>
+                        <button onclick="exportTopCustomersToCSV()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-right: 10px;">
+                            📥 Export CSV
+                        </button>
+                        <button onclick="exportTopCustomersToExcel()" style="padding: 10px 20px; background: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                            📊 Export Excel
+                        </button>
+                    </div>
+                </div>
+                <div id="bestCustomersContainer"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+
+        const formatNumber = (num) => num.toLocaleString('en-US');
+        const formatCurrency = (num) => 'Ksh ' + formatNumber(Math.round(num));
+
+        function getSegmentBadgeClass(segment) {
+            if (segment.includes('Champion')) return 'badge-champions';
+            if (segment.includes('Loyal')) return 'badge-loyal';
+            if (segment.includes('Big Spender')) return 'badge-big-spenders';
+            if (segment.includes('New')) return 'badge-new';
+            if (segment.includes('At Risk')) return 'badge-atrisk';
+            if (segment.includes('Lost')) return 'badge-lost';
+            return 'badge-verylow';
+        }
+
+        function getSegmentColor(segment) {
+            if (segment.includes('Champion')) return '#f39c12';
+            if (segment.includes('Loyal')) return '#2ecc71';
+            if (segment.includes('Big Spender')) return '#9b59b6';
+            if (segment.includes('New')) return '#3498db';
+            if (segment.includes('At Risk')) return '#e74c3c';
+            if (segment.includes('Lost')) return '#95a5a6';
+            return '#7f8c8d';
+        }
+
+        function populateTimeFilters(periods) {
+            const monthGrp = document.getElementById('monthOptions');
+            const quartGrp = document.getElementById('quarterOptions');
+            const halfGrp = document.getElementById('halfOptions');
+            const yearGrp = document.getElementById('yearOptions');
+            
+            // Clear existing options first
+            monthGrp.innerHTML = '';
+            quartGrp.innerHTML = '';
+            halfGrp.innerHTML = '';
+            yearGrp.innerHTML = '';
+            
+            // Populate with new data
+            if (periods.Monthly) {
+                periods.Monthly.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    monthGrp.appendChild(opt);
+                });
+            }
+            
+            if (periods.Quarterly) {
+                periods.Quarterly.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q;
+                    opt.textContent = q;
+                    quartGrp.appendChild(opt);
+                });
+            }
+            
+            if (periods.Semi_Annually) {
+                periods.Semi_Annually.forEach(h => {
+                    const opt = document.createElement('option');
+                    opt.value = h;
+                    opt.textContent = h;
+                    halfGrp.appendChild(opt);
+                });
+            }
+            
+            if (periods.Yearly) {
+                periods.Yearly.forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y;
+                    opt.textContent = y;
+                    yearGrp.appendChild(opt);
+                });
+            }
+        }
+
+        function populateShopFilter(shops) {
+            const shopSelect = document.getElementById('shopFilter');
+            const currentValue = shopSelect.value;
+            
+            // Keep "All Shops" and add dynamic shops
+            shopSelect.innerHTML = '<option value="All Shops">All Shops</option>';
+            
+            shops.forEach(shop => {
+                const opt = document.createElement('option');
+                opt.value = shop;
+                opt.textContent = shop;
+                shopSelect.appendChild(opt);
+            });
+            
+            // Restore previous selection if it still exists
+            if (currentValue && shops.includes(currentValue)) {
+                shopSelect.value = currentValue;
+            }
+        }
+
+        async function loadData() {
+            const shop = document.getElementById('shopFilter').value;
+            const period = document.getElementById('periodFilter').value;
+            const statusEl = document.getElementById('cacheStatus');
+            
+            if (statusEl) statusEl.textContent = `Loading: ${shop} - ${period}...`;
+
+            try {
+                const response = await fetch(`/api/rfm-data?shop=${encodeURIComponent(shop)}&period=${encodeURIComponent(period)}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                console.log('Data received:', data);
+
+                // 1. Populate filter dropdowns
+                if (data.filters) {
+                    populateTimeFilters(data.filters.periods);
+                    populateShopFilter(data.filters.shops);
+
+                    // Auto-load COTM once on first page load
+                    if (!cotmInitialized && data.filters.periods.Monthly) {
+                        populateCOTMMonthFilter(data.filters.periods.Monthly);
+                        cotmInitialized = true;
+                        loadCustomerOfMonth();
+                    }
+                }
+
+                // 2. Update dashboard with the data (NOT data.rfm_stats)
+                populateDateRange(data);
+                populateOverview(data);
+                populateSegmentTable(data.segment_distribution);
+                populateShopGender(data.shop_gender_distribution);
+                populateSpendingAnalysis(data.spending_analysis);
+                populateBestCustomerPerShop(data.best_customer_per_shop);
+                populateBestCustomers(data.best_customers_by_shop);
+                createCharts(data);
+                
+                if (statusEl) statusEl.textContent = `📍 ${shop} | 📅 ${period}`;
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+            } catch (error) {
+                console.error("Dashboard Load Error:", error);
+                showError('Failed to load data: ' + error.message);
+                if (statusEl) statusEl.textContent = "❌ Error loading data";
+            }
+        }
+
+        function populateDateRange(data) {
+            if (data.date_range) {
+                const dateRange = data.date_range;
+                document.getElementById('dateRangeText').textContent = 
+                    `${dateRange.start_date} to ${dateRange.end_date}`;
+                document.getElementById('daysAndTransactionsText').textContent = 
+                    `${dateRange.num_days} days | ${formatNumber(dateRange.num_transactions)} Unique Transactions=SUM(all revenue) / COUNT(unique customers)?`;
+            }
+        }
+
+        function populateOverview(data) {
+            document.getElementById('totalCustomers').textContent = formatNumber(data.total_customers);
+
+            // Calculate segment counts
+            const segments = data.segment_distribution;
+            const champions = segments.find(s => s.segment === 'Champions') || { count: 0, percentage: 0 };
+            const loyal = segments.find(s => s.segment === 'Loyal Customers') || { count: 0, percentage: 0 };
+            const bigSpenders = segments.find(s => s.segment === 'Big Spenders') || { count: 0, percentage: 0 };
+
+            document.getElementById('championsCount').textContent = formatNumber(champions.count);
+            document.getElementById('championsPct').textContent = champions.percentage.toFixed(1) + '% of total';
+
+            document.getElementById('loyalCount').textContent = formatNumber(loyal.count);
+            document.getElementById('loyalPct').textContent = loyal.percentage.toFixed(1) + '% of total';
+
+            document.getElementById('bigSpendersCount').textContent = formatNumber(bigSpenders.count);
+            document.getElementById('bigSpendersPct').textContent = bigSpenders.percentage.toFixed(1) + '% of total';
+
+            // Populate spending analysis
+            document.getElementById('avgSpend').textContent = formatCurrency(data.spending_analysis.avg_spend);
+            document.getElementById('avgSpendPerVisit').textContent = formatCurrency(data.spending_analysis.avg_spend_per_visit);
+            document.getElementById('medianSpend').textContent = formatCurrency(data.spending_analysis.median_spend);
+            document.getElementById('belowAvgCount').textContent = formatNumber(data.spending_analysis.below_avg_count);
+            document.getElementById('belowAvgPct').textContent = data.spending_analysis.below_avg_percentage.toFixed(1) + '% of customers';
+            document.getElementById('aboveAvgCount').textContent = formatNumber(data.spending_analysis.above_avg_count);
+            document.getElementById('aboveAvgPct').textContent = data.spending_analysis.above_avg_percentage.toFixed(1) + '% of customers';
+        }
+
+        function populateSegmentTable(segments) {
+            const tbody = document.getElementById('segmentTable').querySelector('tbody');
+            tbody.innerHTML = '';
+
+            segments.forEach(seg => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="segment-badge ${getSegmentBadgeClass(seg.segment)}">${seg.segment}</span></td>
+                    <td>${formatNumber(seg.count)}</td>
+                    <td>${seg.percentage.toFixed(1)}%</td>
+                    <td>${formatCurrency(seg.avg_revenue)}</td>
+                    <td>${seg.avg_frequency.toFixed(1)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateShopGender(shops) {
+            const container = document.getElementById('shopGenderContainer');
+            container.innerHTML = '';
+
+            // Create table
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Shop</th>
+                        <th>Total</th>
+                        <th>Female</th>
+                        <th>Percentage</th>
+                        <th>Male</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${shops.map(shop => `
+                        <tr>
+                            <td><strong>${shop.shop}</strong></td>
+                            <td>${formatNumber(shop.total)}</td>
+                            <td>${formatNumber(shop.female_count)}</td>
+                            <td>${shop.female_percentage.toFixed(2)}%</td>
+                            <td>${formatNumber(shop.male_count)}</td>
+                            <td>${shop.male_percentage.toFixed(2)}%</td>
+                        </tr>
+                    `).join('')}
+                    <tr style="background-color: #d4edda; font-weight: bold;">
+                        <td>Total</td>
+                        <td>${formatNumber(shops.reduce((sum, s) => sum + s.total, 0))}</td>
+                        <td>${formatNumber(shops.reduce((sum, s) => sum + s.female_count, 0))}</td>
+                        <td>${((shops.reduce((sum, s) => sum + s.female_count, 0) / shops.reduce((sum, s) => sum + s.total, 0)) * 100).toFixed(2)}%</td>
+                        <td>${formatNumber(shops.reduce((sum, s) => sum + s.male_count, 0))}</td>
+                        <td>${((shops.reduce((sum, s) => sum + s.male_count, 0) / shops.reduce((sum, s) => sum + s.total, 0)) * 100).toFixed(2)}%</td>
+                    </tr>
+                </tbody>
+            `;
+            container.appendChild(table);
+        }
+
+        function populateSpendingAnalysis(spending) {
+            // Spending analysis is now populated in populateOverview()
+            // This function is kept for compatibility but does nothing
+        }
+
+        function populateBestCustomers(bestCustomers) {
+            const container = document.getElementById('bestCustomersContainer');
+            container.innerHTML = '';
+
+            for (const [shop, customers] of Object.entries(bestCustomers)) {
+                const shopDiv = document.createElement('div');
+                shopDiv.className = 'shop-section';
+                
+                // Add shop name as header
+                const shopHeader = document.createElement('h3');
+                shopHeader.textContent = shop;
+                shopHeader.style.color = '#667eea';
+                shopHeader.style.marginBottom = '15px';
+                shopHeader.style.fontSize = '20px';
+                shopDiv.appendChild(shopHeader);
+                
+                const table = document.createElement('table');
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Gender</th>
+                            <th>Segment</th>
+                            <th>Recency (Days)</th>
+                            <th>Frequency</th>
+                            <th>Revenue</th>
+                            <th>RFM Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${customers.map(c => `
+                            <tr>
+                                <td>${c.First_Name}</td>
+                                <td>${c.Phone}</td>
+                                <td>${c.Gender}</td>
+                                <td><span class="segment-badge ${getSegmentBadgeClass(c.RFM_Segment)}">${c.RFM_Segment}</span></td>
+                                <td>${c.Recency_Days}</td>
+                                <td>${c.Frequency}</td>
+                                <td>${formatCurrency(c.Monetary)}</td>
+                                <td><strong>${c.RFM_Combined}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                `;
+                
+                shopDiv.appendChild(table);
+                container.appendChild(shopDiv);
+            }
+        }
+
+        function populateBestCustomerPerShop(bestCustomersPerShop) {
+            const tbody = document.getElementById('bestCustomerTable').querySelector('tbody');
+            tbody.innerHTML = '';
+
+            bestCustomersPerShop.forEach(customer => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${customer.shop}</strong></td>
+                    <td>${customer.first_name}</td>
+                    <td>${customer.phone}</td>
+                    <td>${customer.gender}</td>
+                    <td><span class="segment-badge ${getSegmentBadgeClass(customer.rfm_segment)}">${customer.rfm_segment}</span></td>
+                    <td>${customer.frequency}</td>
+                    <td>${customer.recency_days}</td>
+                    <td>${formatCurrency(customer.monetary)}</td>
+                    <td><strong>${customer.rfm_combined}</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createCharts(data) {
+            // Segment Distribution Chart
+            const segmentCtx = document.getElementById('segmentChart').getContext('2d');
+            if (charts.segment) charts.segment.destroy();
+            charts.segment = new Chart(segmentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.segment_distribution.map(s => s.segment),
+                    datasets: [{
+                        data: data.segment_distribution.map(s => s.count),
+                        backgroundColor: data.segment_distribution.map(s => getSegmentColor(s.segment))
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+
+            // Frequency Distribution Chart
+            const freqCtx = document.getElementById('frequencyChart').getContext('2d');
+            if (charts.frequency) charts.frequency.destroy();
+            charts.frequency = new Chart(freqCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.purchase_frequency_distribution.map(f => f.range),
+                    datasets: [{
+                        label: 'Customer Count',
+                        data: data.purchase_frequency_distribution.map(f => f.count),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Spending Chart
+            const spendCtx = document.getElementById('spendingChart').getContext('2d');
+            if (charts.spending) charts.spending.destroy();
+            charts.spending = new Chart(spendCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Below Average', 'Above Average'],
+                    datasets: [{
+                        data: [
+                            data.spending_analysis.below_avg_count,
+                            data.spending_analysis.above_avg_count
+                        ],
+                        backgroundColor: ['#e74c3c', '#2ecc71']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // Monthly Trends Chart
+            if (data.monthly_trends && data.monthly_trends.length > 0) {
+                const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+                if (charts.trends) charts.trends.destroy();
+                
+                // Get all unique segments
+                const allSegments = new Set();
+                data.monthly_trends.forEach(month => {
+                    Object.keys(month.segments).forEach(seg => allSegments.add(seg));
+                });
+
+                const datasets = Array.from(allSegments).map(segment => ({
+                    label: segment,
+                    data: data.monthly_trends.map(month => month.segments[segment] || 0),
+                    borderColor: getSegmentColor(segment),
+                    backgroundColor: getSegmentColor(segment) + '40',
+                    tension: 0.4,
+                    fill: false
+                }));
+
+                charts.trends = new Chart(trendsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.monthly_trends.map(m => m.month),
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            // Best Customer Per Shop Chart
+            if (data.best_customer_per_shop && data.best_customer_per_shop.length > 0) {
+                const bestCustomerCtx = document.getElementById('bestCustomerChart').getContext('2d');
+                if (charts.bestCustomer) charts.bestCustomer.destroy();
+                
+                charts.bestCustomer = new Chart(bestCustomerCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.best_customer_per_shop.map(c => c.shop),
+                        datasets: [{
+                            label: 'Revenue',
+                            data: data.best_customer_per_shop.map(c => c.monetary),
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 2,
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('error').innerHTML = `<div class="error">❌ ${message}</div>`;
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            const statusEl = document.getElementById('cacheStatus');
+            
+            btn.disabled = true;
+            btn.textContent = '🔄 Refreshing...';
+            statusEl.textContent = 'Fetching fresh data from Google Sheets...';
+            statusEl.style.color = 'white';
+            
+            try {
+                const response = await fetch('/api/refresh-now', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.error) {
+                    statusEl.textContent = '⚠️ Using cached data (refresh failed)';
+                    btn.textContent = '🔄 Refresh Data';
+                    btn.disabled = false;
+                    // Still load the data even if refresh failed
+                    location.reload();
+                } else {
+                    statusEl.textContent = '✅ Data refreshed!';
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ Refresh failed';
+                btn.disabled = false;
+                btn.textContent = '🔄 Refresh Data';
+                console.error('Refresh error:', error);
+            }
+        }
+
+        // Export Functions
+        function exportBestCustomersToCSV() {
+            const table = document.getElementById('bestCustomerTable');
+            const rows = [];
+            
+            // Add headers
+            const headers = [];
+            table.querySelectorAll('thead th').forEach(th => {
+                headers.push(th.textContent.trim());
+            });
+            rows.push(headers);
+            
+            // Add data rows
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    row.push(td.textContent.trim().replace(/"/g, '""'));
+                });
+                rows.push(row);
+            });
+            
+            // Convert to CSV
+            const csv = rows.map(r => r.map(cell => `"${cell}"`).join(',')).join('\n');
+            
+            // Download
+            downloadFile(csv, 'best_customers_per_shop.csv', 'text/csv');
+        }
+
+        function exportBestCustomersToExcel() {
+            const table = document.getElementById('bestCustomerTable');
+            exportTableToExcel(table, 'best_customers_per_shop.xlsx');
+        }
+
+        function exportTopCustomersToCSV() {
+            const container = document.getElementById('bestCustomersContainer');
+            const rows = [];
+            
+            // Add headers
+            rows.push(['Shop', 'Name', 'Phone', 'Gender', 'Segment', 'Recency (Days)', 'Frequency', 'Revenue', 'RFM Score']);
+            
+            // Extract data from shop sections
+            container.querySelectorAll('.shop-section').forEach(shopDiv => {
+                const shopName = shopDiv.querySelector('h3').textContent.trim();
+                const table = shopDiv.querySelector('table');
+                
+                if (table) {
+                    table.querySelectorAll('tbody tr').forEach(tr => {
+                        const cells = tr.querySelectorAll('td');
+                        const row = [shopName];
+                        cells.forEach(td => {
+                            row.push(td.textContent.trim().replace(/"/g, '""'));
+                        });
+                        rows.push(row);
+                    });
+                }
+            });
+            
+            // Convert to CSV
+            const csv = rows.map(r => r.map(cell => `"${cell}"`).join(',')).join('\n');
+            
+            // Download
+            downloadFile(csv, 'top_10_best_customers.csv', 'text/csv');
+        }
+
+        function exportTopCustomersToExcel() {
+            const container = document.getElementById('bestCustomersContainer');
+            const workbookData = [];
+            
+            container.querySelectorAll('.shop-section').forEach(shopDiv => {
+                const shopName = shopDiv.querySelector('h3').textContent.trim();
+                const table = shopDiv.querySelector('table');
+                
+                if (table) {
+                    const sheetData = [];
+                    
+                    // Add headers
+                    const headers = [];
+                    table.querySelectorAll('thead th').forEach(th => {
+                        headers.push(th.textContent.trim());
+                    });
+                    sheetData.push(headers);
+                    
+                    // Add data rows
+                    table.querySelectorAll('tbody tr').forEach(tr => {
+                        const row = [];
+                        tr.querySelectorAll('td').forEach(td => {
+                            row.push(td.textContent.trim());
+                        });
+                        sheetData.push(row);
+                    });
+                    
+                    workbookData.push({ name: shopName, data: sheetData });
+                }
+            });
+            
+            exportToExcel(workbookData, 'top_10_best_customers.xlsx');
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function exportTableToExcel(table, filename) {
+            const rows = [];
+            
+            // Add headers
+            const headers = [];
+            table.querySelectorAll('thead th').forEach(th => {
+                headers.push(th.textContent.trim());
+            });
+            rows.push(headers);
+            
+            // Add data rows
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    row.push(td.textContent.trim());
+                });
+                rows.push(row);
+            });
+            
+            exportToExcel([{ name: 'Best Customers', data: rows }], filename);
+        }
+
+        function exportToExcel(workbookData, filename) {
+            // Create HTML table content
+            let htmlContent = '<html><head><meta charset="UTF-8"></head><body>';
+            
+            workbookData.forEach(sheet => {
+                htmlContent += `<table><tr><td colspan="${sheet.data[0].length}"><strong>${sheet.name}</strong></td></tr>`;
+                
+                sheet.data.forEach((row, rowIndex) => {
+                    htmlContent += '<tr>';
+                    row.forEach((cell, cellIndex) => {
+                        const tag = rowIndex === 0 ? 'th' : 'td';
+                        const style = rowIndex === 0 ? 'style="background-color: #667eea; color: white; font-weight: bold;"' : '';
+                        htmlContent += `<${tag} ${style}>${escapeHtml(cell)}</${tag}>`;
+                    });
+                    htmlContent += '</tr>';
+                });
+                
+                htmlContent += '</table><br>';
+            });
+            
+            htmlContent += '</body></html>';
+            
+            // Alternative: Use SheetJS library if available, otherwise use HTML
+            // For simplicity, we'll create a CSV-like format that Excel can open
+            let excelContent = '';
+            
+            workbookData.forEach(sheet => {
+                excelContent += `${sheet.name}\n\n`;
+                sheet.data.forEach(row => {
+                    excelContent += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join('\t') + '\n';
+                });
+                excelContent += '\n\n';
+            });
+            
+            downloadFile(excelContent, filename, 'application/vnd.ms-excel');
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // ── Customer of the Month ───────────────────────────────────────────────
+
+        let cotmData = null;
+        let cotmInitialized = false;
+
+        function populateCOTMMonthFilter(months) {
+            const select = document.getElementById('cotmMonthFilter');
+            const prev = select.value;
+            select.innerHTML = '<option value="">Select month...</option>';
+            const sorted = [...months].reverse(); // most recent first
+            sorted.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                select.appendChild(opt);
+            });
+            select.value = sorted.includes(prev) ? prev : (sorted[0] || '');
+        }
+
+        async function loadCustomerOfMonth() {
+            const month = document.getElementById('cotmMonthFilter').value;
+            if (!month) return;
+
+            document.getElementById('cotmLoading').style.display = 'block';
+            document.getElementById('cotmContainer').innerHTML = '';
+            document.getElementById('cotmStats').innerHTML = '';
+
+            try {
+                const resp = await fetch(`/api/customer-of-month?month=${encodeURIComponent(month)}`);
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error);
+                cotmData = data;
+                document.getElementById('cotmLoading').style.display = 'none';
+                renderCOTMStats(data);
+                renderCOTMResults(data.results);
+            } catch (err) {
+                document.getElementById('cotmLoading').style.display = 'none';
+                document.getElementById('cotmContainer').innerHTML =
+                    `<div class="error">❌ ${err.message}</div>`;
+            }
+        }
+
+        function renderCOTMStats(data) {
+            const qualifying = data.results.filter(r => r.qualifying_count > 0).length;
+            const notQual    = data.results.filter(r => r.qualifying_count === 0 && r.shop_status === 'active').length;
+            document.getElementById('cotmStats').innerHTML = `
+                <div class="overview-card" style="border-left-color:#2ecc71;">
+                    <div class="metric-label">Qualifying Shops</div>
+                    <div class="metric-value">${qualifying}</div>
+                    <div class="metric-subtext">${data.month}</div>
+                </div>
+                <div class="overview-card" style="border-left-color:#f39c12;">
+                    <div class="metric-label">Total Award Value</div>
+                    <div class="metric-value">${formatCurrency(data.total_award_value)}</div>
+                    <div class="metric-subtext">Bag prizes to award</div>
+                </div>
+                <div class="overview-card" style="border-left-color:#e74c3c;">
+                    <div class="metric-label">Not Qualifying</div>
+                    <div class="metric-value">${notQual}</div>
+                    <div class="metric-subtext">Active shops below threshold</div>
+                </div>`;
+        }
+
+        function cotmStatusBadge(status) {
+            const map = {
+                qualified:     '<span class="cotm-badge cotm-qualified">✅ Qualified</span>',
+                not_qualified: '<span class="cotm-badge cotm-not-qual">✗ Not Qualified</span>',
+                verify:        '<span class="cotm-badge cotm-verify">⚠️ Verify</span>',
+                monitoring:    '<span class="cotm-badge cotm-monitoring">👁 Monitoring</span>',
+                no_criteria:   '<span class="cotm-badge cotm-no-criteria">— No Criteria</span>'
+            };
+            return map[status] || map.no_criteria;
+        }
+
+        function buildShopHTML(r, customersToShow) {
+            const headerColor = { active:'#2ecc71', verify:'#f39c12', monitoring:'#3498db', no_criteria:'#95a5a6' };
+            const color = headerColor[r.shop_status] || '#667eea';
+            const criteriaText = r.min_spend
+                ? `Min: ${formatCurrency(r.min_spend)} → Award: ${r.award_amount ? formatCurrency(r.award_amount) : 'TBD'}`
+                : (r.shop_status === 'verify' ? '⚠️ Check &amp; verify amount'
+                  : r.shop_status === 'monitoring' ? '👁 Monitoring only' : 'No criteria set');
+            const winnerBadge = r.qualifying_count > 0
+                ? `<span style="font-size:12px;background:#2ecc71;color:white;padding:2px 8px;border-radius:10px;margin-left:8px;">${r.qualifying_count} winner${r.qualifying_count > 1 ? 's' : ''}</span>` : '';
+
+            const rows = customersToShow.map(c => `
+                <tr style="${c.qualifies ? 'background:#f0fff4;' : ''}">
+                    <td>${c.first_name}</td>
+                    <td>${c.phone}</td>
+                    <td>${c.gender}</td>
+                    <td><strong>${formatCurrency(c.monthly_spend)}</strong></td>
+                    <td>${c.visits}</td>
+                    <td>${c.award_amount ? formatCurrency(c.award_amount) : (c.status === 'verify' ? '⚠️ Verify' : '—')}</td>
+                    <td>${cotmStatusBadge(c.status)}</td>
+                </tr>`).join('');
+
+            return `
+                <div class="shop-section" style="margin-bottom:15px;">
+                    <h3 style="color:${color};margin-bottom:8px;">
+                        ${r.shop}
+                        <span style="font-size:12px;font-weight:normal;color:#777;margin-left:10px;">${criteriaText}</span>
+                        ${winnerBadge}
+                    </h3>
+                    ${rows ? `<table>
+                        <thead><tr><th>Name</th><th>Phone</th><th>Gender</th><th>Monthly Spend</th><th>Visits</th><th>Award (Bag)</th><th>Status</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>` : '<p style="color:#95a5a6;font-style:italic;padding:8px 0;">No data for this month.</p>'}
+                </div>`;
+        }
+
+        function toggleDiv(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function renderCOTMResults(results) {
+            const container = document.getElementById('cotmContainer');
+            const qualified   = results.filter(r => r.qualifying_count > 0 && r.shop_status === 'active');
+            const noWinners   = results.filter(r => r.qualifying_count === 0 && r.shop_status === 'active');
+            const verifyShops = results.filter(r => r.shop_status === 'verify');
+            const monShops    = results.filter(r => r.shop_status === 'monitoring');
+
+            let html = '';
+
+            // ── Winners flat table ─────────────────────────────────────────────
+            html += `<h3 style="color:#2ecc71;margin-bottom:12px;font-size:18px;">✅ Winners This Month (${qualified.length} shop${qualified.length !== 1 ? 's' : ''})</h3>`;
+            if (qualified.length > 0) {
+                html += `<table>
+                    <thead><tr>
+                        <th>Shop</th><th>Name</th><th>Phone</th><th>Gender</th>
+                        <th>Monthly Spend</th><th>Min Threshold</th><th>Award (Bag)</th><th>Visits</th>
+                    </tr></thead>
+                    <tbody>
+                        ${qualified.map(r => {
+                            const c = r.customers[0];
+                            return `<tr style="background:#f0fff4;">
+                                <td><strong>${r.shop}</strong></td>
+                                <td>${c.first_name}</td>
+                                <td>${c.phone}</td>
+                                <td>${c.gender}</td>
+                                <td><strong>${formatCurrency(c.monthly_spend)}</strong></td>
+                                <td>${formatCurrency(r.min_spend)}</td>
+                                <td style="color:#27ae60;font-weight:bold;">${r.award_amount ? formatCurrency(r.award_amount) : 'TBD'}</td>
+                                <td>${c.visits}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+            } else {
+                html += `<p style="color:#95a5a6;font-style:italic;padding:8px 0;">No qualifying customers this month.</p>`;
+            }
+
+            // ── Not qualifying — collapsible ───────────────────────────────────
+            if (noWinners.length > 0) {
+                html += `
+                <div style="margin-top:22px;">
+                    <h3 style="color:#e74c3c;margin-bottom:10px;font-size:18px;cursor:pointer;" onclick="toggleDiv('cotmNoWinnersBody')">
+                        ✗ Not Qualifying This Month (${noWinners.length} shops) <span style="font-size:13px;color:#95a5a6;">▼ expand</span>
+                    </h3>
+                    <div id="cotmNoWinnersBody" style="display:none;">
+                        <table>
+                            <thead><tr>
+                                <th>Shop</th><th>Top Spender</th><th>Phone</th><th>Gender</th>
+                                <th>Their Spend</th><th>Min Threshold</th><th>Gap to Qualify</th><th>Award</th>
+                            </tr></thead>
+                            <tbody>
+                                ${noWinners.map(r => {
+                                    const c = r.customers[0];
+                                    const gap = c ? Math.max(0, r.min_spend - c.monthly_spend) : 0;
+                                    return `<tr>
+                                        <td><strong>${r.shop}</strong></td>
+                                        <td>${c ? c.first_name : '—'}</td>
+                                        <td>${c ? c.phone : '—'}</td>
+                                        <td>${c ? c.gender : '—'}</td>
+                                        <td>${c ? formatCurrency(c.monthly_spend) : '—'}</td>
+                                        <td>${r.min_spend ? formatCurrency(r.min_spend) : '—'}</td>
+                                        <td style="color:#e74c3c;">${gap > 0 ? formatCurrency(gap) + ' short' : '—'}</td>
+                                        <td>${r.award_amount ? formatCurrency(r.award_amount) : 'TBD'}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            // ── Verify shops — collapsible ─────────────────────────────────────
+            if (verifyShops.length > 0) {
+                html += `
+                <div style="margin-top:22px;">
+                    <h3 style="color:#f39c12;margin-bottom:10px;font-size:18px;cursor:pointer;" onclick="toggleDiv('cotmVerifyBody')">
+                        ⚠️ Manual Verification — ${verifyShops.map(r => r.shop).join(', ')} <span style="font-size:13px;color:#95a5a6;">▼ expand</span>
+                    </h3>
+                    <div id="cotmVerifyBody" style="display:none;">
+                        <table>
+                            <thead><tr><th>Shop</th><th>Top Spender</th><th>Phone</th><th>Gender</th><th>Monthly Spend</th><th>Visits</th><th>Note</th></tr></thead>
+                            <tbody>
+                                ${verifyShops.map(r => {
+                                    const c = r.customers[0];
+                                    return c ? `<tr>
+                                        <td><strong>${r.shop}</strong></td>
+                                        <td>${c.first_name}</td><td>${c.phone}</td><td>${c.gender}</td>
+                                        <td>${formatCurrency(c.monthly_spend)}</td><td>${c.visits}</td>
+                                        <td><span class="cotm-badge cotm-verify">⚠️ Verify manually</span></td>
+                                    </tr>` : '';
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            // ── Monitoring shops — collapsible ─────────────────────────────────
+            if (monShops.length > 0) {
+                html += `
+                <div style="margin-top:22px;">
+                    <h3 style="color:#3498db;margin-bottom:10px;font-size:18px;cursor:pointer;" onclick="toggleDiv('cotmMonBody')">
+                        👁 Monitoring — ${monShops.map(r => r.shop).join(', ')} <span style="font-size:13px;color:#95a5a6;">▼ expand</span>
+                    </h3>
+                    <div id="cotmMonBody" style="display:none;">
+                        <table>
+                            <thead><tr><th>Shop</th><th>Top Spender</th><th>Phone</th><th>Gender</th><th>Monthly Spend</th><th>Visits</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${monShops.map(r => {
+                                    const c = r.customers[0];
+                                    return c ? `<tr>
+                                        <td><strong>${r.shop}</strong></td>
+                                        <td>${c.first_name}</td><td>${c.phone}</td><td>${c.gender}</td>
+                                        <td>${formatCurrency(c.monthly_spend)}</td><td>${c.visits}</td>
+                                        <td><span class="cotm-badge cotm-monitoring">👁 Monitoring</span></td>
+                                    </tr>` : '';
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function cotmExportRows() {
+            const rows = [['Month','Shop','Min Threshold','Award Amount','Customer Name','Phone','Gender','Monthly Spend','Visits','Status']];
+            cotmData.results.forEach(r => {
+                const c = r.customers[0];
+                if (!c) return;
+                rows.push([
+                    cotmData.month, r.shop,
+                    r.min_spend ? `Ksh ${r.min_spend}` : '-',
+                    r.award_amount ? `Ksh ${r.award_amount}` : '-',
+                    c.first_name, c.phone, c.gender,
+                    `Ksh ${c.monthly_spend}`, c.visits, c.status
+                ]);
+            });
+            return rows;
+        }
+
+        function exportCOTMToCSV() {
+            if (!cotmData) return;
+            const rows = cotmExportRows();
+            const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            downloadFile(csv, `customer_of_month_${cotmData.month.replace(' ','_')}.csv`, 'text/csv');
+        }
+
+        function exportCOTMToExcel() {
+            if (!cotmData) return;
+            exportToExcel([{ name: 'Customer of Month', data: cotmExportRows() }],
+                `customer_of_month_${cotmData.month.replace(' ','_')}.xlsx`);
+        }
+
+        // ── End Customer of the Month ────────────────────────────────────────────
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
