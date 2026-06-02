@@ -46,30 +46,45 @@ RFM_WEIGHTS = {'R': 0.20, 'F': 0.20, 'M': 0.60}
 
 # Customer of the Month awarding criteria per shop
 # min_spend: minimum monthly spend to qualify (KSh)
-# award: bag prize value (KSh), None = TBD
 # status: 'active' = threshold-based, 'verify' = manual check, 'monitoring' = observation only
 AWARDING_CRITERIA = {
-    'Hilton':     {'min_spend': 50000, 'award': 4000,  'status': 'active'},
-    'Starmall':   {'min_spend': 30000, 'award': 3000,  'status': 'active'},
-    'Ktda':       {'min_spend': 20000, 'award': 2000,  'status': 'active'},
-    'Hazina':     {'min_spend': 20000, 'award': 2000,  'status': 'active'},
-    'Kakamega':   {'min_spend': 20000, 'award': 2000,  'status': 'active'},
-    'Kisii':      {'min_spend': 20000, 'award': 2000,  'status': 'active'},
-    'Mombasa':    {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Nakuru':     {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Eldoret':    {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Thika':      {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Kisumu':     {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Meru':       {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Kitengela':  {'min_spend': 15000, 'award': 2000,  'status': 'active'},
-    'Nanyuki':    {'min_spend': 10000, 'award': 1200,  'status': 'active'},
-    'Busia':      {'min_spend': 10000, 'award': 1200,  'status': 'active'},
-    'Corporate':  {'min_spend': None,  'award': None,  'status': 'verify'},
-    'Website':    {'min_spend': None,  'award': None,  'status': 'verify'},
-    'Rongai':     {'min_spend': 10000,  'award': 1200,  'status': 'active'},
-    'Sinza':      {'min_spend': None,  'award': None,  'status': 'monitoring'},
-    'Uganda':     {'min_spend': None,  'award': None,  'status': 'monitoring'},
+    'Hilton':     {'min_spend': 50000, 'status': 'active'},
+    'Starmall':   {'min_spend': 30000, 'status': 'active'},
+    'Ktda':       {'min_spend': 20000, 'status': 'active'},
+    'Hazina':     {'min_spend': 20000, 'status': 'active'},
+    'Kakamega':   {'min_spend': 20000, 'status': 'active'},
+    'Kisii':      {'min_spend': 20000, 'status': 'active'},
+    'Mombasa':    {'min_spend': 15000, 'status': 'active'},
+    'Nakuru':     {'min_spend': 15000, 'status': 'active'},
+    'Eldoret':    {'min_spend': 15000, 'status': 'active'},
+    'Thika':      {'min_spend': 15000, 'status': 'active'},
+    'Kisumu':     {'min_spend': 15000, 'status': 'active'},
+    'Meru':       {'min_spend': 15000, 'status': 'active'},
+    'Kitengela':  {'min_spend': 15000, 'status': 'active'},
+    'Nanyuki':    {'min_spend': 10000, 'status': 'active'},
+    'Busia':      {'min_spend': 10000, 'status': 'active'},
+    'Rongai':     {'min_spend': 10000, 'status': 'active'},
+    'Corporate':  {'min_spend': None,  'status': 'verify'},
+    'Website':    {'min_spend': None,  'status': 'verify'},
+    'Sinza':      {'min_spend': None,  'status': 'monitoring'},
+    'Uganda':     {'min_spend': None,  'status': 'monitoring'},
 }
+
+# Global award tiers — actual bag prize is determined by the customer's spend,
+# not a fixed per-shop amount. Tiers are checked highest-first.
+AWARD_TIERS = [
+    {'min_spend': 50000, 'award': 4000},
+    {'min_spend': 30000, 'award': 3000},
+    {'min_spend': 15000, 'award': 2000},
+    {'min_spend': 10000, 'award': 1200},
+]
+
+def get_award_for_spend(spend):
+    """Return the bag prize amount for a given monthly spend."""
+    for tier in AWARD_TIERS:
+        if spend >= tier['min_spend']:
+            return tier['award']
+    return None
 
 def assign_rfm_segment(r_score, f_score, m_score):
     """
@@ -844,7 +859,6 @@ def calculate_customer_of_month(df, month_str):
 
         shop_status = criteria['status'] if criteria else 'no_criteria'
         min_spend = criteria['min_spend'] if criteria else None
-        award_amount = criteria['award'] if criteria else None
 
         # Only the single top spender per shop qualifies for the award
         row = shop_customers.iloc[0]
@@ -853,7 +867,7 @@ def calculate_customer_of_month(df, month_str):
         if shop_status == 'active' and min_spend:
             qualifies = spend >= min_spend
             cust_status = 'qualified' if qualifies else 'not_qualified'
-            cust_award = award_amount if qualifies else None
+            cust_award = get_award_for_spend(spend) if qualifies else None
         elif shop_status == 'verify':
             qualifies = False
             cust_status = 'verify'
@@ -871,7 +885,7 @@ def calculate_customer_of_month(df, month_str):
             'shop': shop,
             'shop_status': shop_status,
             'min_spend': min_spend,
-            'award_amount': award_amount,
+            'award_amount': get_award_for_spend(spend) if (shop_status == 'active' and min_spend and spend >= min_spend) else None,
             'customers': [{
                 'first_name': str(row['First_Name']),
                 'phone': str(row['Phone']),
