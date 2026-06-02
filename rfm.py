@@ -66,7 +66,7 @@ AWARDING_CRITERIA = {
     'Busia':      {'min_spend': 10000, 'award': 1200,  'status': 'active'},
     'Corporate':  {'min_spend': None,  'award': None,  'status': 'verify'},
     'Website':    {'min_spend': None,  'award': None,  'status': 'verify'},
-    'Rongai':     {'min_spend': 10000,  'award': 1200,  'status': 'monitoring'},
+    'Rongai':     {'min_spend': 10000,  'award': 1200,  'status': 'active'},
     'Sinza':      {'min_spend': None,  'award': None,  'status': 'monitoring'},
     'Uganda':     {'min_spend': None,  'award': None,  'status': 'monitoring'},
 }
