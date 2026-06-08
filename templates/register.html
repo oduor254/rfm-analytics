@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFM Dashboard — Create Account</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.4s ease;
+        }
+        @keyframes slideUp {
+            from { opacity:0; transform:translateY(30px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+        .logo { text-align:center; margin-bottom:32px; }
+        .logo h1 {
+            font-size:26px; font-weight:700;
+            background: linear-gradient(135deg,#667eea,#764ba2);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .logo p { color:#95a5a6; font-size:13px; margin-top:6px; }
+
+        .form-group { margin-bottom:18px; }
+        .form-group label {
+            display:block; font-size:12px; font-weight:700;
+            text-transform:uppercase; letter-spacing:0.5px;
+            color:#7f8c8d; margin-bottom:7px;
+        }
+        .form-group input {
+            width:100%; padding:12px 16px; border:2px solid #ecf0f1;
+            border-radius:8px; font-size:15px; color:#2c3e50;
+            transition:border-color 0.2s; outline:none;
+        }
+        .form-group input:focus { border-color:#667eea; }
+        .form-group input.error-field { border-color:#e74c3c; }
+
+        .btn-register {
+            width:100%; padding:14px;
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            color:white; border:none; border-radius:8px;
+            font-size:15px; font-weight:700; cursor:pointer;
+            transition:opacity 0.2s, transform 0.1s; margin-top:4px;
+        }
+        .btn-register:hover  { opacity:0.92; }
+        .btn-register:active { transform:scale(0.98); }
+        .btn-register:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .error-box {
+            background:#fdf0f0; border:1px solid #f5c6cb;
+            border-left:4px solid #e74c3c; color:#721c24;
+            padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:18px;
+            display:none;
+        }
+        .success-box {
+            background:#f0fdf4; border:1px solid #bbf7d0;
+            border-left:4px solid #22c55e; color:#166534;
+            padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:18px;
+            display:none;
+        }
+
+        .hint { font-size:12px; color:#bdc3c7; margin-top:5px; }
+
+        .footer-links { text-align:center; margin-top:24px; font-size:13px; color:#95a5a6; }
+        .footer-links a { color:#667eea; text-decoration:none; font-weight:600; }
+        .footer-links a:hover { text-decoration:underline; }
+
+        .spinner {
+            width:18px; height:18px; border:2px solid rgba(255,255,255,0.4);
+            border-top-color:white; border-radius:50%;
+            animation:spin 0.7s linear infinite; display:inline-block; vertical-align:middle;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">
+        <h1>📊 RFM Dashboard</h1>
+        <p>Create your account</p>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+    <div class="success-box" id="successBox"></div>
+
+    <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Choose a username" autocomplete="username">
+        <div class="hint">Lowercase letters and numbers only</div>
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="At least 6 characters" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="confirm" placeholder="Re-enter your password" autocomplete="new-password">
+    </div>
+
+    <button class="btn-register" id="registerBtn" onclick="doRegister()">Create Account</button>
+
+    <div class="footer-links">
+        Already have an account? <a href="/login">Sign in</a>
+    </div>
+</div>
+
+<script>
+async function doRegister() {
+    const username = document.getElementById('username').value.trim().toLowerCase();
+    const password = document.getElementById('password').value.trim();
+    const confirm  = document.getElementById('confirm').value.trim();
+    const errBox   = document.getElementById('errorBox');
+    const okBox    = document.getElementById('successBox');
+    const btn      = document.getElementById('registerBtn');
+
+    errBox.style.display = 'none';
+    okBox.style.display  = 'none';
+
+    if (!username || !password || !confirm) {
+        return showError('Please fill in all fields.');
+    }
+    if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+        return showError('Username must be 3–30 characters: letters, numbers, or underscore.');
+    }
+    if (password.length < 6) {
+        return showError('Password must be at least 6 characters.');
+    }
+    if (password !== confirm) {
+        return showError('Passwords do not match.');
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+
+    try {
+        const res = await fetch('/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        const data = await res.json();
+        if (data.success) {
+            okBox.textContent = 'Account created! Redirecting to sign-in…';
+            okBox.style.display = 'block';
+            setTimeout(() => window.location.href = '/login', 1800);
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Create Account';
+            showError(data.error || 'Registration failed.');
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+        showError('Network error. Please try again.');
+    }
+}
+
+function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠️ ' + msg;
+    box.style.display = 'block';
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doRegister();
+});
+</script>
+</body>
+</html>

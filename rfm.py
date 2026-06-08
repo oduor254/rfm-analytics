@@ -14,6 +14,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
@@ -38,13 +39,6 @@ SHEET_NAME = 'Customer Database'
 WORKSHEET_NAME = 'Shops'
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
-
-def get_users():
-    """Load named users from APP_USERS env var (JSON: {"name":"pass",...})."""
-    try:
-        return json.loads(os.environ.get('APP_USERS', '{}'))
-    except Exception:
-        return {}
 
 def login_required(f):
     @wraps(f)
@@ -949,6 +943,13 @@ def calculate_customer_of_month(df, month_str):
     return results
 
 
+def _supabase_config():
+    return {
+        'supabase_url': os.environ.get('SUPABASE_URL', ''),
+        'supabase_key': os.environ.get('SUPABASE_KEY', ''),
+    }
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user' in session:
@@ -956,15 +957,80 @@ def login():
     error = None
     username = ''
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
+        username = request.form.get('username', '').strip().lower()
         password = request.form.get('password', '').strip()
-        users = get_users()
-        if username in users and users[username] == password:
-            session['user'] = username
-            log_login(username, request.headers.get('X-Forwarded-For', request.remote_addr))
-            return redirect(url_for('index'))
+        if username and password:
+            try:
+                sb = get_supabase()
+                if sb:
+                    result = sb.table('users').select('*').eq('username', username).execute()
+                    if result.data and check_password_hash(result.data[0]['password'], password):
+                        session['user'] = username
+                        log_login(username, request.headers.get('X-Forwarded-For', request.remote_addr))
+                        return redirect(url_for('index'))
+            except Exception as e:
+                print(f"[WARNING] Login DB check failed: {e}")
         error = 'Invalid username or password.'
-    return render_template('login.html', error=error, username=username)
+    return render_template('login.html', error=error, username=username, **_supabase_config())
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if 'user' in session:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        username = data.get('username', '').strip().lower()
+        password = data.get('password', '').strip()
+        if not username or not password:
+            return jsonify({'success': False, 'error': 'Username and password are required.'})
+        if len(password) < 6:
+            return jsonify({'success': False, 'error': 'Password must be at least 6 characters.'})
+        try:
+            sb = get_supabase()
+            if not sb:
+                return jsonify({'success': False, 'error': 'Database not configured.'})
+            existing = sb.table('users').select('id').eq('username', username).execute()
+            if existing.data:
+                return jsonify({'success': False, 'error': 'Username already taken.'})
+            sb.table('users').insert({
+                'username': username,
+                'password': generate_password_hash(password)
+            }).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+    return render_template('register.html', **_supabase_config())
+
+
+@app.route('/auth/callback')
+def auth_callback():
+    """Renders the page that extracts the Supabase OAuth token from the URL fragment."""
+    return render_template('auth_callback.html', **_supabase_config())
+
+
+@app.route('/auth/exchange', methods=['POST'])
+def auth_exchange():
+    """Receives a verified Supabase access token from the client and creates a Flask session."""
+    try:
+        data = request.get_json() or {}
+        access_token = data.get('access_token')
+        user_name = data.get('user_name', '')
+        user_email = data.get('user_email', '')
+        if not access_token:
+            return jsonify({'success': False, 'error': 'No token provided.'})
+        sb = get_supabase()
+        if not sb:
+            return jsonify({'success': False, 'error': 'Database not configured.'})
+        user_response = sb.auth.get_user(access_token)
+        if user_response and user_response.user:
+            display = user_name or user_email or user_response.user.email
+            session['user'] = display
+            log_login(display, request.headers.get('X-Forwarded-For', request.remote_addr))
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Token verification failed.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/logout')

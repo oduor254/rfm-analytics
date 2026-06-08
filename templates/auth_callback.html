@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Signing you in…</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display:flex; align-items:center; justify-content:center;
+            color:white; text-align:center;
+        }
+        .msg { font-size:18px; }
+        .spinner {
+            width:40px; height:40px; border:4px solid rgba(255,255,255,0.3);
+            border-top-color:white; border-radius:50%;
+            animation:spin 0.8s linear infinite; margin:0 auto 20px;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div>
+    <div class="spinner"></div>
+    <div class="msg" id="msg">Completing sign-in…</div>
+</div>
+
+<script>
+(async function () {
+    const SUPABASE_URL = {{ supabase_url | tojson }};
+    const SUPABASE_KEY = {{ supabase_key | tojson }};
+
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        document.getElementById('msg').textContent = 'Auth not configured.';
+        setTimeout(() => window.location.href = '/login?error=Supabase+not+configured', 2000);
+        return;
+    }
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Let the Supabase client process the OAuth callback (handles both
+    // implicit-flow fragments and PKCE query-param codes automatically).
+    const { data: { session }, error } = await sb.auth.getSession();
+
+    if (error || !session) {
+        document.getElementById('msg').textContent = 'Sign-in failed. Redirecting…';
+        setTimeout(() => window.location.href = '/login?error=' + encodeURIComponent(error?.message || 'No session'), 2000);
+        return;
+    }
+
+    // Exchange the Supabase token for a server-side Flask session
+    const meta = session.user.user_metadata || {};
+    const res = await fetch('/auth/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            access_token: session.access_token,
+            user_email:   session.user.email,
+            user_name:    meta.full_name || meta.name || session.user.email
+        })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+        window.location.href = '/';
+    } else {
+        document.getElementById('msg').textContent = 'Sign-in failed: ' + (result.error || 'Unknown error');
+        setTimeout(() => window.location.href = '/login', 3000);
+    }
+})();
+</script>
+</body>
+</html>
