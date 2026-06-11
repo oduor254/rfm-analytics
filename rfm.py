@@ -12,9 +12,7 @@ os.environ['CURL_CA_BUNDLE'] = certifi.where()
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
-from functools import wraps
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, jsonify, request
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
@@ -31,50 +29,12 @@ from datetime import datetime, timedelta
 # Templates resolved relative to this file so Vercel finds them correctly
 _template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=_template_dir)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-
 # Configuration — JSON_FILE_PATH is the local fallback; production uses GOOGLE_CREDENTIALS_JSON env var
 JSON_FILE_PATH = r'C:\Users\Oduor\Downloads\JSON Files\retention-484110-9e4520124486.json'
 SHEET_NAME = 'Customer Database'
 WORKSHEET_NAME = 'Shops'
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-# ── Supabase helpers ──────────────────────────────────────────────────────────
-
-_supabase_client = None
-
-def get_supabase():
-    global _supabase_client
-    if _supabase_client is None:
-        url = os.environ.get('SUPABASE_URL')
-        key = os.environ.get('SUPABASE_KEY')
-        if url and key:
-            try:
-                from supabase import create_client
-                _supabase_client = create_client(url, key)
-            except Exception as e:
-                print(f"[WARNING] Supabase init failed: {e}")
-    return _supabase_client
-
-def log_login(username, ip):
-    try:
-        sb = get_supabase()
-        if sb:
-            sb.table('login_logs').insert({
-                'username': username,
-                'ip_address': ip or 'unknown'
-            }).execute()
-    except Exception as e:
-        print(f"[WARNING] Login log failed: {e}")
 
 # Cache variables
 cached_data = None
@@ -943,128 +903,16 @@ def calculate_customer_of_month(df, month_str):
     return results
 
 
-def _supabase_config():
-    return {
-        'supabase_url': os.environ.get('SUPABASE_URL', ''),
-        'supabase_key': os.environ.get('SUPABASE_KEY', ''),
-    }
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if 'user' in session:
-        return redirect(url_for('index'))
-    error = None
-    username = ''
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip().lower()
-        password = request.form.get('password', '').strip()
-        if username and password:
-            try:
-                sb = get_supabase()
-                if sb:
-                    result = sb.table('users').select('*').eq('username', username).execute()
-                    if result.data and check_password_hash(result.data[0]['password'], password):
-                        session['user'] = username
-                        log_login(username, request.headers.get('X-Forwarded-For', request.remote_addr))
-                        return redirect(url_for('index'))
-            except Exception as e:
-                print(f"[WARNING] Login DB check failed: {e}")
-        error = 'Invalid username or password.'
-    return render_template('login.html', error=error, username=username, **_supabase_config())
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if 'user' in session:
-        return redirect(url_for('index'))
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        username = data.get('username', '').strip().lower()
-        password = data.get('password', '').strip()
-        if not username or not password:
-            return jsonify({'success': False, 'error': 'Username and password are required.'})
-        if len(password) < 6:
-            return jsonify({'success': False, 'error': 'Password must be at least 6 characters.'})
-        try:
-            sb = get_supabase()
-            if not sb:
-                return jsonify({'success': False, 'error': 'Database not configured.'})
-            existing = sb.table('users').select('id').eq('username', username).execute()
-            if existing.data:
-                return jsonify({'success': False, 'error': 'Username already taken.'})
-            sb.table('users').insert({
-                'username': username,
-                'password': generate_password_hash(password)
-            }).execute()
-            return jsonify({'success': True})
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)})
-    return render_template('register.html', **_supabase_config())
-
-
-@app.route('/auth/callback')
-def auth_callback():
-    """Renders the page that extracts the Supabase OAuth token from the URL fragment."""
-    return render_template('auth_callback.html', **_supabase_config())
-
-
-@app.route('/auth/exchange', methods=['POST'])
-def auth_exchange():
-    """Receives a verified Supabase access token from the client and creates a Flask session."""
-    try:
-        data = request.get_json() or {}
-        access_token = data.get('access_token')
-        user_name = data.get('user_name', '')
-        user_email = data.get('user_email', '')
-        if not access_token:
-            return jsonify({'success': False, 'error': 'No token provided.'})
-        sb = get_supabase()
-        if not sb:
-            return jsonify({'success': False, 'error': 'Database not configured.'})
-        user_response = sb.auth.get_user(access_token)
-        if user_response and user_response.user:
-            display = user_name or user_email or user_response.user.email
-            session['user'] = display
-            log_login(display, request.headers.get('X-Forwarded-For', request.remote_addr))
-            return jsonify({'success': True})
-        return jsonify({'success': False, 'error': 'Token verification failed.'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-
-@app.route('/api/login-logs')
-@login_required
-def get_login_logs():
-    try:
-        sb = get_supabase()
-        if not sb:
-            return jsonify({'logs': [], 'error': 'Supabase not configured'})
-        result = sb.table('login_logs') \
-            .select('*') \
-            .order('logged_in_at', desc=True) \
-            .limit(50) \
-            .execute()
-        return jsonify({'logs': result.data})
-    except Exception as e:
-        return jsonify({'error': str(e), 'logs': []})
 
 
 @app.route('/')
-@login_required
 def index():
     """Render the RFM dashboard"""
     print("--- RFM Dashboard Home Accessed ---")
     return render_template('rfm_dashboard.html')
 
 @app.route('/api/rfm-data')
-@login_required
+
 def get_rfm_data():
     """API endpoint to get filtered RFM analysis data"""
     try:
@@ -1174,7 +1022,7 @@ def get_rfm_data():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/customer-of-month')
-@login_required
+
 def get_customer_of_month():
     """API endpoint for Customer of the Month awarding list"""
     try:
@@ -1203,7 +1051,7 @@ def get_customer_of_month():
 
 
 @app.route('/api/refresh-now', methods=['POST'])
-@login_required
+
 def refresh_now():
     """Force refresh data from Google Sheets"""
     global cached_data, last_fetch_time
