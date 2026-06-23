@@ -246,12 +246,25 @@ def get_customer_data():
         if df_filtered.empty:
             raise ValueError("No data matches the filter criteria")
         
-        # Clean price data
+        # Clean price/quantity/total data
         df_filtered['Price'] = df_filtered['Price'].astype(str).str.replace(r'[^\d.]', '', regex=True)
         df_filtered['Price'] = pd.to_numeric(df_filtered['Price'], errors='coerce')
-        
+
+        if 'Quantity' in df_filtered.columns:
+            df_filtered['Quantity'] = pd.to_numeric(df_filtered['Quantity'], errors='coerce').fillna(1)
+        else:
+            df_filtered['Quantity'] = 1
+
+        if 'Total' in df_filtered.columns:
+            df_filtered['Total'] = df_filtered['Total'].astype(str).str.replace(r'[^\d.]', '', regex=True)
+            df_filtered['Total'] = pd.to_numeric(df_filtered['Total'], errors='coerce').fillna(0)
+        else:
+            # Derive Total from Price * Quantity if column is missing
+            df_filtered['Total'] = (df_filtered['Price'].fillna(0) * df_filtered['Quantity']).round(2)
+
         print(f"[DEBUG] Records with null Price after conversion: {df_filtered['Price'].isna().sum()}")
         print(f"[DEBUG] Records with Price = 0: {(df_filtered['Price'] == 0).sum()}")
+        print(f"[DEBUG] Records with Total = 0: {(df_filtered['Total'] == 0).sum()}")
         print(f"[DEBUG] Records with null First Name: {df_filtered['First Name'].isna().sum()}")
         print(f"[DEBUG] Records with null Phone: {df_filtered['Phone'].isna().sum()}")
         
@@ -463,8 +476,8 @@ def calculate_rfm_scores(df, analysis_date=None, period_type='yearly'):
         analysis_date = df['Date'].max()
     
     # Customer summary - using 'Shop' column
-    # First, filter out zero prices for revenue calculation
-    df_for_revenue = df[df['Price'] > 0].copy()
+    # First, filter out zero totals for revenue calculation (Total = Price × Quantity)
+    df_for_revenue = df[df['Total'] > 0].copy()
     df_for_count = df.copy()  # Keep all records for order counting
     
     customer_summary = df_for_count.groupby('Customer_ID').agg({
@@ -475,8 +488,8 @@ def calculate_rfm_scores(df, analysis_date=None, period_type='yearly'):
         'Date': ['min', 'max', 'count']
     }).reset_index()
     
-    # Now add revenue from non-zero prices only
-    revenue_by_customer = df_for_revenue.groupby('Customer_ID')['Price'].sum().to_dict()
+    # Now add revenue from non-zero totals only (Total = Price × Quantity)
+    revenue_by_customer = df_for_revenue.groupby('Customer_ID')['Total'].sum().to_dict()
     customer_summary['Total_Revenue'] = customer_summary['Customer_ID'].map(revenue_by_customer).fillna(0)
     
     # ✅ Keep it as 'Shop' in the column names
@@ -504,9 +517,9 @@ def calculate_rfm_scores(df, analysis_date=None, period_type='yearly'):
     print(f"[DEBUG] Customer summary Monetary sum: {customer_summary['Monetary'].sum()}")
     print(f"[DEBUG] Customer summary Monetary count (unique customers): {len(customer_summary)}")
     print(f"[DEBUG] Total Revenue calculation check:")
-    print(f"[DEBUG]   - Records with Price > 0: {len(df_for_revenue)}")
-    print(f"[DEBUG]   - Sum of prices (non-zero): {df_for_revenue['Price'].sum()}")
-    print(f"[DEBUG]   - Expected avg = {df_for_revenue['Price'].sum()} / {len(customer_summary)} = {df_for_revenue['Price'].sum() / len(customer_summary) if len(customer_summary) > 0 else 0}")
+    print(f"[DEBUG]   - Records with Total > 0: {len(df_for_revenue)}")
+    print(f"[DEBUG]   - Sum of totals (non-zero): {df_for_revenue['Total'].sum()}")
+    print(f"[DEBUG]   - Expected avg = {df_for_revenue['Total'].sum()} / {len(customer_summary)} = {df_for_revenue['Total'].sum() / len(customer_summary) if len(customer_summary) > 0 else 0}")
     
     # Get period-specific thresholds
     thresholds = get_rfm_thresholds(period_type)
@@ -665,11 +678,11 @@ def calculate_spending_analysis(filtered_transactions_df, rfm_df):
     print(f"[DEBUG]   - Unique customers in RFM: {len(rfm_df)}")
     print(f"[DEBUG]   - Calculation: {rfm_df['Monetary'].sum()} / {len(rfm_df)} = {avg_spend}")
     
-    # Average spend per visit - IMPORTANT: Exclude zero prices (combo items)
-    df_work = filtered_transactions_df[filtered_transactions_df['Price'] > 0].copy()
+    # Average spend per visit - IMPORTANT: Exclude zero totals (combo items)
+    df_work = filtered_transactions_df[filtered_transactions_df['Total'] > 0].copy()
     df_work['Visit_Date'] = df_work['Date'].dt.date
-    visit_spending = df_work.groupby(['Customer_ID', 'Visit_Date'])['Price'].sum().reset_index()
-    avg_spend_per_visit = visit_spending['Price'].mean() if len(visit_spending) > 0 else 0
+    visit_spending = df_work.groupby(['Customer_ID', 'Visit_Date'])['Total'].sum().reset_index()
+    avg_spend_per_visit = visit_spending['Total'].mean() if len(visit_spending) > 0 else 0
     total_visits = len(visit_spending)
     
     print(f"[DEBUG]   - Avg spend per visit: {avg_spend_per_visit}")
@@ -829,7 +842,7 @@ def calculate_customer_of_month(df, month_str):
         month_df = df[
             (df['Date'].dt.year == target_date.year) &
             (df['Date'].dt.month == target_date.month) &
-            (df['Price'] > 0)
+            (df['Total'] > 0)
         ].copy()
     except Exception as e:
         print(f"[ERROR] Customer of Month filter failed: {str(e)}")
@@ -842,7 +855,7 @@ def calculate_customer_of_month(df, month_str):
         First_Name=('First Name', 'first'),
         Phone=('Phone', 'first'),
         Gender=('Gender', 'first'),
-        Monthly_Spend=('Price', 'sum'),
+        Monthly_Spend=('Total', 'sum'),
         Visits=('Date', lambda x: x.dt.date.nunique())
     ).reset_index()
 
@@ -962,9 +975,9 @@ def get_rfm_data():
         empty_customer_ids = (filtered_transactions['Customer_ID'].isna() | (filtered_transactions['Customer_ID'] == '')).sum()
         print(f"[DEBUG] Records with null/empty Customer_ID: {empty_customer_ids}")
         
-        print(f"[DEBUG] Records with null/zero Price in filtered transactions: {(filtered_transactions['Price'] <= 0).sum() + filtered_transactions['Price'].isna().sum()}")
-        print(f"[DEBUG] Total spend in filtered data: {filtered_transactions['Price'].sum()}")
-        print(f"[DEBUG] Avg price per transaction in filtered data: {filtered_transactions['Price'].mean()}")
+        print(f"[DEBUG] Records with null/zero Total in filtered transactions: {(filtered_transactions['Total'] <= 0).sum() + filtered_transactions['Total'].isna().sum()}")
+        print(f"[DEBUG] Total spend in filtered data: {filtered_transactions['Total'].sum()}")
+        print(f"[DEBUG] Avg total per transaction in filtered data: {filtered_transactions['Total'].mean()}")
         
         # 5. Calculate RFM scores on the FILTERED data (not full dataset)
         # This ensures F, M, R reflect only the selected period/location
